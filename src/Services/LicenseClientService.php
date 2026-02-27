@@ -34,7 +34,7 @@ class LicenseClientService
     public function validateLicense(array $data = []): bool
     {
         if ($this->accessToken) {
-            $url = Config::get('license-client.license_server_url') . '/api/license-server/license';
+            $url = Config::get('license-client.license_server_url') . '/api/licenses/validate';
 
             $response = Http::withHeaders([
                 'x-host' => Config::get('app.url'),
@@ -73,7 +73,7 @@ class LicenseClientService
             return $accessToken;
         }
 
-        $url = Config::get('license-client.license_server_url') . '/api/licenses/token';
+        $url = Config::get('license-client.license_server_url') . '/api/licenses/tokens';
 
         $response = Http::withHeaders([
             'x-host' => Config::get('app.url'),
