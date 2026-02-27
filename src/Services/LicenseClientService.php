@@ -73,7 +73,7 @@ class LicenseClientService
             return $accessToken;
         }
 
-        $url = Config::get('license-client.license_server_url') . '/api/license-server/auth/login';
+        $url = Config::get('license-client.license_server_url') . '/api/licenses/token';
 
         $response = Http::withHeaders([
             'x-host' => Config::get('app.url'),
