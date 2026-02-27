@@ -20,7 +20,7 @@ class LicenseClientServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->publishes([
-            __DIR__.'/../config/config.php' => $this->app->configPath('license-client.php'),
+            __DIR__.'/../config/license-client.php' => $this->app->configPath('license-client.php'),
         ], 'license-client-config');
     }
 
@@ -30,6 +30,6 @@ class LicenseClientServiceProvider extends ServiceProvider
     private function registerConfigs(): void
     {
 
-        $this->mergeConfigFrom(__DIR__.'/../config/config.php', 'license-client');
+        $this->mergeConfigFrom(__DIR__.'/../config/license-client.php', 'license-client');
     }
 }
