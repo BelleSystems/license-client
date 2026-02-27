@@ -2,11 +2,13 @@
 
 namespace Bellesoft\LicenseClient\Services;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Cache;
 use Bellesoft\LicenseClient\Traits\ResponseTrait;
-use Exception;
+use Bellesoft\LicenseClient\Exceptions\LicenseValidationException;
+use Carbon\Carbon;
 class LicenseClientService
 {
 
@@ -19,41 +21,51 @@ class LicenseClientService
     public function __construct(string $licenseKey)
     {
         $this->licenseKey = $licenseKey;
-        $this->accessToken = $this->getAccessToken($licenseKey);
+        // $this->accessToken = $this->getAccessToken($licenseKey);
+        // dd($this->accessToken);
     }
 
     
     /**
      * Check license status
      *
-     * @param string $licenseKey
      * @param array $data
      *
-     * @return boolean
+     * @return array License data on success
+     *
+     * @throws LicenseValidationException When the license server returns an error or the response is invalid
      */
-    public function validateLicense(array $data = []): bool
+    public function validateLicense(array $data = []): array
     {
-        if ($this->accessToken) {
-            $url = Config::get('license-client.license_server_url') . '/api/licenses/validate';
+        $url = Config::get('license-client.license_server_url') . '/api/licenses/validate';
 
-            $response = Http::withHeaders([
-                'x-host' => Config::get('app.url'),
-                'x-host-name' => Config::get('app.name'),
-                'Authorization' => "Bearer {$this->accessToken}",
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-            ])->post($url, $data);
+        $response = Http::withHeaders([
+            'x-host' => Config::get('app.url'),
+            'x-host-name' => Config::get('app.name'),
+            'Authorization' => "Bearer {$this->accessToken}",
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ])->post($url, ['license_key' => $this->licenseKey, ...$data]);
 
-            if ($response->ok()) {
-                $license = $response->json();
-
-                $this->license = $license;
-
-                return $license && $license['status'] == 'active';
-            }
+        if (!$response->ok()) {
+            throw LicenseValidationException::fromResponse(
+                $response->status(),
+                $response->json() ?? ['message' => $response->body() ?: 'Unknown license server error.']
+            );
         }
 
-        return false;
+        $license = $response->json();
+        if (empty($license['data'])) {
+            throw new LicenseValidationException(
+                502,
+                'Invalid license server response: missing data.',
+                $license
+            );
+        }
+
+        $this->license = $license['data'];
+
+        return $this->license;
     }
 
     /**
@@ -73,7 +85,7 @@ class LicenseClientService
             return $accessToken;
         }
 
-        $url = Config::get('license-client.license_server_url') . '/api/licenses/tokens';
+        $url = Config::get('license-client.license_server_url') . '/api/licenses/token';
 
         $response = Http::withHeaders([
             'x-host' => Config::get('app.url'),
@@ -87,11 +99,12 @@ class LicenseClientService
         $data = $response->json();
 
         if ($response->ok()) {
-            if ($data['status'] === true) {
-                if (!empty($data['access_token'])) {
-                    $accessToken = $data['access_token'];
+            if ($data['status'] === "success") {
+                if (!empty($data['data']) && !empty($data['data']['token'])) {
+                    $accessToken = $data['data']['token'];
+                    $expiresAt = Carbon::parse($data['data']['expires_at']);
 
-                    Cache::put($accessTokenCacheKey, $accessToken, now()->addMinutes(60));
+                    Cache::put($accessTokenCacheKey, $accessToken, $expiresAt);
 
                     return $accessToken;
                 } else {
