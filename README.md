@@ -13,5 +13,5 @@ The package will automatically register itself.
 You can publish the config-file with:
 
 ```bash
-php artisan vendor:publish --provider="Bellesoft\PorticoIptv\IPTVServiceProvider" --tag="license-client-config"
+php artisan vendor:publish --provider="Bellesoft\LicenseClient\LicenseClientServiceProvider" --tag="license-client-config"
 ```
